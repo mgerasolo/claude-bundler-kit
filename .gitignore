@@ -1,0 +1,5 @@
+# Generated bundles never get committed to the kit repo itself
+*-bundle/
+*.zip
+*.tar.gz
+.DS_Store
