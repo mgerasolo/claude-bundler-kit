@@ -8,6 +8,12 @@ _require_scrubbed() {
     echo "Refusing to share: no SECRETS-REPORT.md found. Run the scrub step first." >&2
     return 1
   fi
+  # Re-scrub the WHOLE bundle (incl. any docs written after the first scrub)
+  # so nothing sensitive leaves the machine.
+  if command -v scrub_dir >/dev/null 2>&1; then
+    echo "Re-scrubbing the full bundle before share..."
+    scrub_dir "$out" "$out/SECRETS-REPORT.md" >/dev/null 2>&1 || true
+  fi
   echo
   echo "Before sharing, confirm you've reviewed: $out/SECRETS-REPORT.md"
   read -r -p "Have you reviewed it and are OK to share? [y/N]: " r
