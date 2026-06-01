@@ -1,8 +1,12 @@
 # Claude Bundler Kit
 
+![CI](https://github.com/mgerasolo/claude-bundler-kit/actions/workflows/ci.yml/badge.svg)
+
 **Gather everything you use with Claude into one clean, secret-scrubbed bundle — then send it to someone for review and learning.**
 
-It copies your real config (CLAUDE.md files, settings, plugins, MCP servers, skills, slash commands, hooks), writes a plain-English summary of each piece, records where each one came from (original path + GitHub URL for public projects), reconstructs your idea-to-ship workflow, **scrubs out every secret**, and packages it so it's trivially easy to share.
+It copies your real config (CLAUDE.md files + `@imports`, settings, plugins, MCP servers, **subagents**, skills, slash commands, hooks, output-styles, plus claude-related shell/cron lines), records each component's source (original path + GitHub URL for public projects), captures your environment/versions, reconstructs your idea-to-ship workflow, **scrubs out secrets and PII**, inventories any executable content for whoever you send it to, and packages it so it's trivially easy to share.
+
+See [SECURITY.md](SECURITY.md) for exactly what's excluded, scrubbed, and flagged.
 
 ---
 
@@ -17,17 +21,22 @@ cd claude-bundler-kit
 That's it. `claude-bundler.sh` is an interactive wizard. It will:
 
 1. **Ask you to name** your bundle.
-2. **Show you an overview** of exactly what it's about to do (and confirm before touching anything).
-3. **Gather** copies of your Claude config into `<name>-bundle/sources/`, mirroring your original layout.
-4. **Scrub secrets** — API keys, tokens, passwords, private keys, JWTs, and emails are replaced with `[REDACTED]`, and you get a `SECRETS-REPORT.md` showing what was caught.
-5. **Add summaries + workflow docs** — runs Claude to explain each component (or hands you a prompt to paste into Claude Code if the CLI isn't available).
-6. **Ask how you want to share it:**
-   - Push to a **public** GitHub repo
-   - Push to a **private** GitHub repo
-   - Build a **zip** you can email
-   - Upload to a **temporary file-share** link
+2. **Show you an overview** and confirm before touching anything.
+3. **Gather** copies of your Claude config into `<name>-bundle/sources/`, mirroring your original layout — and skip credential-shaped files (`.env`/`.pem`/`.ssh/`…) entirely.
+4. **Scrub secrets + PII** — keys, tokens, passwords, private keys, JWTs, emails, internal IPs, private hostnames, phone numbers, and your username in paths → `[REDACTED]`, with a `SECRETS-REPORT.md` showing what was caught.
+5. **Inventory executable content** — `EXECUTABLE-CONTENT.md` lists every script/hook + a risk scan, so whoever you send it to knows what's runnable before running it.
+6. **Add summaries + workflow docs** — runs Claude to explain each component (or hands you a prompt to paste in if the CLI isn't available).
+7. **Ask how you want to share it:** public GitHub repo · private GitHub repo · emailable **zip** · **temporary file-share** link.
 
-Everything that leaves your machine is scrubbed first — sharing is blocked until the scrub step has run.
+Everything that leaves your machine is scrubbed first — sharing is blocked until the scrub step has run, and the full bundle is re-scrubbed right before share.
+
+### Just want to see what it would grab?
+
+```bash
+./claude-bundler.sh --dry-run
+```
+
+Lists every file it would copy (and what it would skip) without touching anything.
 
 ---
 
@@ -42,11 +51,14 @@ Open Claude Code at the root of your main project and paste the contents of [`pr
 ```
 <name>-bundle/
 ├── README.md                 # "Here's what I'm doing. Here's my setup. Learn from it."
-├── CONFIG-INVENTORY.md       # CLAUDE.md files, settings, plugins, MCP, skills, hooks
+├── CONFIG-INVENTORY.md       # CLAUDE.md, settings, plugins, MCP, subagents, skills, hooks
 ├── TOOLS-AND-REFERENCES.md   # your named tools + what each does + source URLs
 ├── WORKFLOW.md               # how you go from idea to shipped code
 ├── SUMMARY-TABLE.md          # one-line index of every component with its source
+├── ENVIRONMENT.md            # claude version, installed plugins, MCP servers
+├── EXECUTABLE-CONTENT.md     # inventory of every script/hook + risk flags
 ├── SECRETS-REPORT.md         # what the scrubber caught, per file
+├── PROJECT-FINGERPRINT.md    # (optional) manifests + layout — not your source
 └── sources/                  # redacted COPIES of every real file
 ```
 
