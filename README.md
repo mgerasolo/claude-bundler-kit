@@ -9,7 +9,7 @@ It copies your real config (CLAUDE.md files, settings, plugins, MCP servers, ski
 ## Quick start
 
 ```bash
-git clone https://github.com/<your-username>/claude-bundler-kit.git
+git clone https://github.com/mgerasolo/claude-bundler-kit.git
 cd claude-bundler-kit
 ./claude-bundler.sh
 ```
