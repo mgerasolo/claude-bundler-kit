@@ -43,9 +43,11 @@ echo
 bold "What it will do:"
 echo "  1. Copy your Claude config — CLAUDE.md (+@imports), settings,"
 echo "     plugins/MCP, subagents, skills, commands, hooks, output-styles,"
-echo "     plus claude-related shell/cron lines and an ENVIRONMENT.md."
-echo "  2. Scrub secrets AND PII (keys, tokens, passwords, emails, internal"
-echo "     IPs, private hostnames, phone numbers, your username in paths)."
+echo "     plus claude-related shell/cron lines and an ENVIRONMENT.md —"
+echo "     redacting EACH FILE the instant it's copied (no raw secret ever"
+echo "     rests in the bundle)."
+echo "  2. Re-verify the whole tree (secrets + PII), write a report, then run"
+echo "     external scanners (betterleaks/gitleaks/...) as a hard gate."
 echo "  3. Inventory all executable content so your reviewer knows what's"
 echo "     runnable before they run it (EXECUTABLE-CONTENT.md)."
 echo "  4. Add plain-English summaries + your idea-to-ship workflow via Claude."
@@ -98,9 +100,9 @@ green "Gather complete."
 # ---------------------------------------------------------------------------
 # 4. Scrub secrets + PII (mandatory before any share)
 # ---------------------------------------------------------------------------
-echo; bold ">> Scrubbing secrets + PII..."
+echo; bold ">> Verifying redaction (full-tree pass; files already scrubbed at copy time)..."
 scrub_dir "$OUT_DIR/sources" "$OUT_DIR/SECRETS-REPORT.md"
-green "Scrub complete. Review $OUT_DIR/SECRETS-REPORT.md"
+green "Scrub verified. Review $OUT_DIR/SECRETS-REPORT.md"
 
 # ---------------------------------------------------------------------------
 # 4.5 Deep scan (verification gate — betterleaks/gitleaks/trufflehog)
