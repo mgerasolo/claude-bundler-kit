@@ -28,6 +28,23 @@ hostnames (`.local`/`.lan`/`.internal`/`.home`/`.corp`), phone numbers, AWS
 account IDs inside ARNs, and your username in `/home/<you>` paths (tokenized to
 `<USER>`).
 
+## Verification layer (external scanners)
+
+The regex scrubber is a fast first pass over **known** formats. Because regex
+can't catch every custom or high-entropy secret, the kit runs a second,
+authoritative pass with whichever scanner is installed — and **blocks the share
+if anything is still flagged**:
+
+- **betterleaks** (recommended — by the Gitleaks creators) — `betterleaks dir <bundle>`
+- **gitleaks** — `gitleaks detect --no-git --source <bundle>`
+- **trufflehog** — `trufflehog filesystem <bundle>` (can verify live secrets)
+- **detect-secrets** — entropy + plugin baseline
+
+Results land in `DEEPSCAN-REPORT.md`. If none of these are installed, a built-in
+Shannon-entropy flag still runs and the report tells you to install one. The
+share step re-runs this scan and requires an explicit `share anyway` to override
+a finding.
+
 ## Recipient protection
 
 The bundle includes `EXECUTABLE-CONTENT.md`: an inventory of every script and

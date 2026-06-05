@@ -14,9 +14,19 @@ _require_scrubbed() {
     echo "Re-scrubbing the full bundle before share..."
     scrub_dir "$out" "$out/SECRETS-REPORT.md" >/dev/null 2>&1 || true
   fi
+  # Final verification pass with the external scanners.
+  if command -v deep_scan >/dev/null 2>&1; then
+    echo "Final deep scan before share..."
+    if ! deep_scan "$out" "$out/DEEPSCAN-REPORT.md"; then
+      echo
+      echo "⚠️  The deep scan flagged potential secrets in $out/DEEPSCAN-REPORT.md"
+      read -r -p "Findings present. Type 'share anyway' to proceed: " ack
+      [ "$ack" = "share anyway" ] || { echo "Share cancelled — fix the findings and re-run."; return 1; }
+    fi
+  fi
   echo
-  echo "Before sharing, confirm you've reviewed: $out/SECRETS-REPORT.md"
-  read -r -p "Have you reviewed it and are OK to share? [y/N]: " r
+  echo "Before sharing, confirm you've reviewed: $out/SECRETS-REPORT.md and DEEPSCAN-REPORT.md"
+  read -r -p "Have you reviewed them and are OK to share? [y/N]: " r
   [[ "$r" =~ ^[Yy] ]] || { echo "Share cancelled."; return 1; }
 }
 
