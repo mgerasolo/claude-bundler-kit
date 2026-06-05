@@ -13,7 +13,7 @@
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for m in gather scrub inventory safety share; do
+for m in gather scrub deepscan inventory safety share; do
   # shellcheck disable=SC1090
   source "$KIT_DIR/lib/$m.sh"
 done
@@ -101,6 +101,17 @@ green "Gather complete."
 echo; bold ">> Scrubbing secrets + PII..."
 scrub_dir "$OUT_DIR/sources" "$OUT_DIR/SECRETS-REPORT.md"
 green "Scrub complete. Review $OUT_DIR/SECRETS-REPORT.md"
+
+# ---------------------------------------------------------------------------
+# 4.5 Deep scan (verification gate — betterleaks/gitleaks/trufflehog)
+# ---------------------------------------------------------------------------
+echo; bold ">> Deep secret scan (verification)..."
+if deep_scan "$OUT_DIR/sources" "$OUT_DIR/DEEPSCAN-REPORT.md"; then
+  green "Deep scan clean (or no scanners installed — see DEEPSCAN-REPORT.md)."
+else
+  yellow "⚠️  Deep scan flagged potential secrets — review $OUT_DIR/DEEPSCAN-REPORT.md"
+  yellow "    Fix those before sharing. The share step will ask you to confirm."
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Recipient-safety manifest

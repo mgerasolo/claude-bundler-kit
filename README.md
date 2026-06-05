@@ -30,6 +30,21 @@ That's it. `claude-bundler.sh` is an interactive wizard. It will:
 
 Everything that leaves your machine is scrubbed first — sharing is blocked until the scrub step has run, and the full bundle is re-scrubbed right before share.
 
+### Defense in depth: regex scrub + real scanners
+
+Our regex scrubber catches **known** secret/PII formats fast. As a second, authoritative layer the kit then runs whichever industry secret-scanner you have installed and **stops the share if anything is still flagged**:
+
+```bash
+# Recommended — by the Gitleaks creators:
+brew install betterleaks      # https://github.com/betterleaks/betterleaks
+# Alternatives it will also use if present:
+brew install gitleaks
+brew install trufflehog
+pipx install detect-secrets
+```
+
+If none are installed, the kit still runs a built-in high-entropy flag and tells you to install one. See [SECURITY.md](SECURITY.md).
+
 ### Just want to see what it would grab?
 
 ```bash
@@ -57,7 +72,8 @@ Open Claude Code at the root of your main project and paste the contents of [`pr
 ├── SUMMARY-TABLE.md          # one-line index of every component with its source
 ├── ENVIRONMENT.md            # claude version, installed plugins, MCP servers
 ├── EXECUTABLE-CONTENT.md     # inventory of every script/hook + risk flags
-├── SECRETS-REPORT.md         # what the scrubber caught, per file
+├── SECRETS-REPORT.md         # what the regex scrubber caught, per file
+├── DEEPSCAN-REPORT.md        # external scanner verification (betterleaks/gitleaks/…)
 ├── PROJECT-FINGERPRINT.md    # (optional) manifests + layout — not your source
 └── sources/                  # redacted COPIES of every real file
 ```
