@@ -33,6 +33,8 @@ _copy_into_sources() {
   local dest="$out/sources/$rel"
   mkdir -p "$(dirname "$dest")"
   cp -p "$src" "$dest" 2>/dev/null || cp "$src" "$dest"
+  # Redact AT COPY TIME — a raw secret never rests in the bundle unscrubbed.
+  command -v scrub_file >/dev/null 2>&1 && scrub_file "$dest" >/dev/null 2>&1 || true
   echo "  + $src"
 }
 
@@ -132,6 +134,10 @@ _gather_shell_and_cron() {
       | sed "s|^|$(basename "$rc"): |" >> "$dest/claude-related-shell.txt" || true
   done
   crontab -l 2>/dev/null | grep -iE 'claude|anthropic' > "$dest/claude-related-cron.txt" 2>/dev/null || true
+  # Redact these immediately too (aliases/cron can embed tokens).
+  if command -v scrub_file >/dev/null 2>&1; then
+    for sf in "$dest"/*.txt; do [ -f "$sf" ] && scrub_file "$sf" >/dev/null 2>&1 || true; done
+  fi
   [ -s "$dest/claude-related-shell.txt" ] && echo "  + shell rc lines mentioning claude"
   [ -s "$dest/claude-related-cron.txt" ] && echo "  + crontab lines mentioning claude"
   find "$dest" -type f -empty -delete 2>/dev/null || true
