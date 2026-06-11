@@ -33,7 +33,7 @@
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for m in gather scrub deepscan inventory safety process profile share; do
+for m in gather scrub deepscan inventory safety process profile analysis share; do
   # shellcheck disable=SC1090
   source "$KIT_DIR/lib/$m.sh"
 done
@@ -168,6 +168,7 @@ gather_fingerprint "$OUT_DIR"
 capture_environment "$OUT_DIR"
 capture_process_flow "$OUT_DIR"
 capture_profile "$OUT_DIR"
+capture_analysis "$OUT_DIR"
 green "Gather complete."
 
 # ---- scrub verify ---------------------------------------------------------
