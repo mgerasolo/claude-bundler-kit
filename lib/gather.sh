@@ -55,7 +55,7 @@ _follow_imports() {
   local md="$1" out="$2" base
   [ -f "$md" ] || return 0
   base="$(dirname "$md")"
-  grep -oE '@[A-Za-z0-9._/~-]+' "$md" 2>/dev/null | sed 's/^@//' | while read -r ref; do
+  { grep -oE '@[A-Za-z0-9._/~-]+' "$md" 2>/dev/null || true; } | sed 's/^@//' | while read -r ref; do
     case "$ref" in
       ~*) ref="${ref/#\~/$HOME}" ;;
       /*) : ;;
@@ -89,11 +89,13 @@ gather_config() {
   _copy_into_sources "$HOME/.mcp.json" "$out"
   _copy_into_sources "$proj/.mcp.json" "$out"
   # plugin/marketplace manifests (config only, never the plugin code)
-  find "$HOME/.claude/plugins" -maxdepth 3 -type f \
-       \( -name '*.json' -o -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) \
-       ! -path '*/node_modules/*' 2>/dev/null | while read -r f; do
-    _copy_into_sources "$f" "$out"
-  done
+  if [ -d "$HOME/.claude/plugins" ]; then
+    find "$HOME/.claude/plugins" -maxdepth 3 -type f \
+         \( -name '*.json' -o -name '*.md' -o -name '*.yaml' -o -name '*.yml' \) \
+         ! -path '*/node_modules/*' 2>/dev/null | while read -r f; do
+      _copy_into_sources "$f" "$out"
+    done
+  fi
 
   echo " Subagents:"
   _copy_tree "$HOME/.claude/agents" "$out"

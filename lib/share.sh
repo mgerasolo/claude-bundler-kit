@@ -24,6 +24,9 @@ _require_scrubbed() {
       [ "$ack" = "share anyway" ] || { echo "Share cancelled — fix the findings and re-run."; return 1; }
     fi
   fi
+  # In AUTO mode the deep-scan gate already ran upstream (and aborted on
+  # findings), so don't prompt — just proceed.
+  if [ "${AUTO:-0}" = "1" ]; then return 0; fi
   echo
   echo "Before sharing, confirm you've reviewed: $out/SECRETS-REPORT.md and DEEPSCAN-REPORT.md"
   read -r -p "Have you reviewed them and are OK to share? [y/N]: " r
@@ -36,6 +39,15 @@ share_github() {
   if ! command -v gh >/dev/null 2>&1; then
     echo "GitHub CLI ('gh') not found. Install it (https://cli.github.com) and re-run,"
     echo "or choose the zip option instead."
+    if [ "${AUTO:-0}" = "1" ]; then
+      echo "AUTO mode: falling back to a zip you can email."
+      share_zip "$out" "$name"
+    fi
+    return 0
+  fi
+  if [ "${AUTO:-0}" = "1" ] && ! gh auth status >/dev/null 2>&1; then
+    echo "gh is not authenticated. AUTO mode: falling back to a zip you can email."
+    share_zip "$out" "$name"
     return 0
   fi
   ( cd "$out"

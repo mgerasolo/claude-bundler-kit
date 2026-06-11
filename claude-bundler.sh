@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 #
-# Claude Bundler Kit — interactive wizard
-# Gathers your Claude setup, scrubs secrets + PII, inventories executable
-# content for the recipient, and helps you share it.
+# Claude Bundler Kit — gather your Claude setup, scrub secrets + PII, inventory
+# executable content for the recipient, and share it.
 #
-# Read-only on your real config. Nothing leaves your machine until secrets
-# have been scrubbed and you confirm the report.
+# Read-only on your real config. Files are redacted at copy time; external
+# scanners run before anything is shared.
 #
-# Flags:
-#   --dry-run   Show what WOULD be gathered, copy nothing, then exit.
+# USAGE
+#   ./claude-bundler.sh                 interactive wizard (asks a few questions)
+#   ./claude-bundler.sh --auto          one-shot: build + scrub + scan + zip, no prompts
+#   ./claude-bundler.sh --dry-run       show what would be gathered, copy nothing
+#
+# FLAGS
+#   --auto                 non-interactive; sensible defaults; no questions
+#   --name <name>          bundle name (default: my-claude-setup)
+#   --share <method>       zip | github-public | github-private | templink | none
+#                          (default in --auto: zip)
+#   --fingerprint          include a non-source project fingerprint
+#   --with-claude          in --auto, also run the claude CLI to write summaries
+#   --yes                  assume yes to overwrite prompts (implied by --auto)
+#   --dry-run              list what would be gathered, then exit
+#   -h, --help             this help
 
 set -euo pipefail
 
@@ -19,135 +31,190 @@ for m in gather scrub deepscan inventory safety share; do
 done
 
 bold()  { printf '\033[1m%s\033[0m\n' "$1"; }
-dim()   { printf '\033[2m%s\033[0m\n' "$1"; }
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
 yellow(){ printf '\033[33m%s\033[0m\n' "$1"; }
+red()   { printf '\033[31m%s\033[0m\n' "$1"; }
 ask()   { local p="$1" d="${2:-}" r; if [ -n "$d" ]; then read -r -p "$p [$d]: " r; echo "${r:-$d}"; else read -r -p "$p: " r; echo "$r"; fi; }
 confirm(){ local r; read -r -p "$1 [y/N]: " r; [[ "$r" =~ ^[Yy] ]]; }
 
-DRY_RUN=0
-[ "${1:-}" = "--dry-run" ] && DRY_RUN=1
-export DRY_RUN
+# ---- defaults / flag parsing ----------------------------------------------
+AUTO=0; DRY_RUN=0; YES=0; FINGERPRINT=0; WITH_CLAUDE=0
+NAME=""; SHARE_METHOD=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --auto) AUTO=1; YES=1 ;;
+    --yes|-y) YES=1 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --fingerprint) FINGERPRINT=1 ;;
+    --with-claude) WITH_CLAUDE=1 ;;
+    --name) shift; NAME="${1:-}" ;;
+    --share) shift; SHARE_METHOD="${1:-}" ;;
+    -h|--help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) red "Unknown flag: $1"; exit 1 ;;
+  esac
+  shift
+done
+export DRY_RUN FINGERPRINT
+
+# ---- preflight ------------------------------------------------------------
+have(){ command -v "$1" >/dev/null 2>&1; }
+preflight() {
+  local missing_critical=0
+  bold ">> Preflight — checking what's available:"
+  for c in perl find file; do
+    if have "$c"; then echo "  ✅ $c"; else echo "  ❌ $c (REQUIRED)"; missing_critical=1; fi
+  done
+  echo "  Secret scanners (optional but recommended — at least one):"
+  local any_scanner=0
+  for s in betterleaks gitleaks trufflehog detect-secrets; do
+    if have "$s"; then echo "    ✅ $s"; any_scanner=1; else echo "    ➖ $s (not installed)"; fi
+  done
+  [ "$any_scanner" = 0 ] && yellow "    none installed — regex scrub + entropy flag still run; 'brew install betterleaks' recommended"
+  echo "  Sharing helpers:"
+  have gh  && echo "    ✅ gh (GitHub share)"     || echo "    ➖ gh (needed only for github-* share)"
+  have zip && echo "    ✅ zip"                    || echo "    ➖ zip (will fall back to tar.gz)"
+  have curl && echo "    ✅ curl (temp link)"      || echo "    ➖ curl (needed only for templink share)"
+  have claude && echo "    ✅ claude CLI (summaries)" || echo "    ➖ claude CLI (summaries skipped if absent)"
+  echo
+  return "$missing_critical"
+}
 
 # ---------------------------------------------------------------------------
-# 1. Welcome + overview
+# Welcome
 # ---------------------------------------------------------------------------
-clear || true
+[ "$AUTO" = 1 ] || clear || true
 bold "================================================================"
 bold "  Claude Bundler Kit"
 bold "================================================================"
 echo
-echo "This wizard gathers everything you use with Claude into one clean,"
-echo "shareable bundle so someone else can review it and learn."
-echo
-bold "What it will do:"
-echo "  1. Copy your Claude config — CLAUDE.md (+@imports), settings,"
-echo "     plugins/MCP, subagents, skills, commands, hooks, output-styles,"
-echo "     plus claude-related shell/cron lines and an ENVIRONMENT.md —"
-echo "     redacting EACH FILE the instant it's copied (no raw secret ever"
-echo "     rests in the bundle)."
-echo "  2. Re-verify the whole tree (secrets + PII), write a report, then run"
-echo "     external scanners (betterleaks/gitleaks/...) as a hard gate."
-echo "  3. Inventory all executable content so your reviewer knows what's"
-echo "     runnable before they run it (EXECUTABLE-CONTENT.md)."
-echo "  4. Add plain-English summaries + your idea-to-ship workflow via Claude."
-echo "  5. Let you share it: public/private GitHub repo, an emailable zip,"
-echo "     or a temporary file-share link."
-echo
-yellow "READ-ONLY on your real files. Credential-shaped files (.env/.pem/.ssh/"
-yellow "etc.) are never copied. Nothing is shared until secrets are scrubbed."
-echo
 
-if [ "$DRY_RUN" = "1" ]; then
+if ! preflight; then
+  red "Missing a required tool above. Install it and re-run."
+  exit 1
+fi
+
+# ---- dry run --------------------------------------------------------------
+if [ "$DRY_RUN" = 1 ]; then
   bold ">> DRY RUN — showing what would be gathered, copying nothing."
   gather_config "/tmp/claude-bundler-dryrun" || true
   echo; green "Dry run complete. Re-run without --dry-run to build the bundle."
   exit 0
 fi
 
-confirm "Ready to start?" || { echo "Aborted. Nothing was changed."; exit 0; }
+# ---- interactive intro / confirm ------------------------------------------
+if [ "$AUTO" = 0 ]; then
+  echo "This builds one clean, shareable bundle of your Claude setup. It is"
+  echo "READ-ONLY on your files, redacts each file as it's copied, never copies"
+  echo "credential-shaped files (.env/.pem/.ssh), and runs secret scanners"
+  echo "before anything is shared."
+  echo
+  confirm "Ready to start?" || { echo "Aborted. Nothing was changed."; exit 0; }
+fi
 
-# ---------------------------------------------------------------------------
-# 2. Name the bundle + options
-# ---------------------------------------------------------------------------
-echo
-NAME="$(ask "Name your bundle (letters, numbers, dashes)" "my-claude-setup")"
+# ---- name + output --------------------------------------------------------
+if [ "$AUTO" = 0 ] && [ -z "$NAME" ]; then
+  NAME="$(ask "Name your bundle (letters, numbers, dashes)" "my-claude-setup")"
+fi
+[ -z "$NAME" ] && NAME="my-claude-setup"
 NAME="$(echo "$NAME" | tr ' ' '-' | tr -cd 'A-Za-z0-9._-')"; [ -z "$NAME" ] && NAME="my-claude-setup"
 OUT_DIR="$PWD/${NAME}-bundle"
 
 if [ -e "$OUT_DIR" ]; then
-  yellow "A folder named ${NAME}-bundle already exists at $OUT_DIR"
-  confirm "Reuse / overwrite its contents?" || { echo "Aborted."; exit 0; }
+  if [ "$YES" = 1 ]; then yellow "Overwriting existing $OUT_DIR"
+  else
+    yellow "A folder named ${NAME}-bundle already exists at $OUT_DIR"
+    confirm "Reuse / overwrite its contents?" || { echo "Aborted."; exit 0; }
+  fi
 fi
 mkdir -p "$OUT_DIR/sources"
 
-FINGERPRINT=0
-if confirm "Also include a non-source project fingerprint (manifests + layout, NOT your code)?"; then
-  FINGERPRINT=1
+# fingerprint question (interactive only)
+if [ "$AUTO" = 0 ] && [ "$FINGERPRINT" = 0 ]; then
+  confirm "Also include a non-source project fingerprint (manifests + layout, NOT your code)?" && FINGERPRINT=1
 fi
 export FINGERPRINT
 green "Bundle will be built at: $OUT_DIR"
 
-# ---------------------------------------------------------------------------
-# 3. Gather + environment
-# ---------------------------------------------------------------------------
-echo; bold ">> Gathering your Claude config..."
+# ---- gather ---------------------------------------------------------------
+echo; bold ">> Gathering your Claude config (redacting each file as it lands)..."
 gather_config "$OUT_DIR"
 gather_fingerprint "$OUT_DIR"
 capture_environment "$OUT_DIR"
 green "Gather complete."
 
-# ---------------------------------------------------------------------------
-# 4. Scrub secrets + PII (mandatory before any share)
-# ---------------------------------------------------------------------------
-echo; bold ">> Verifying redaction (full-tree pass; files already scrubbed at copy time)..."
+# ---- scrub verify ---------------------------------------------------------
+echo; bold ">> Verifying redaction (full-tree pass)..."
 scrub_dir "$OUT_DIR/sources" "$OUT_DIR/SECRETS-REPORT.md"
-green "Scrub verified. Review $OUT_DIR/SECRETS-REPORT.md"
 
-# ---------------------------------------------------------------------------
-# 4.5 Deep scan (verification gate — betterleaks/gitleaks/trufflehog)
-# ---------------------------------------------------------------------------
+# ---- deep scan gate -------------------------------------------------------
 echo; bold ">> Deep secret scan (verification)..."
-if deep_scan "$OUT_DIR/sources" "$OUT_DIR/DEEPSCAN-REPORT.md"; then
+DEEP_OK=1
+deep_scan "$OUT_DIR/sources" "$OUT_DIR/DEEPSCAN-REPORT.md" || DEEP_OK=0
+if [ "$DEEP_OK" = 1 ]; then
   green "Deep scan clean (or no scanners installed — see DEEPSCAN-REPORT.md)."
 else
-  yellow "⚠️  Deep scan flagged potential secrets — review $OUT_DIR/DEEPSCAN-REPORT.md"
-  yellow "    Fix those before sharing. The share step will ask you to confirm."
+  yellow "⚠️  Deep scan flagged potential secrets — see $OUT_DIR/DEEPSCAN-REPORT.md"
+  if [ "$AUTO" = 1 ]; then
+    red "AUTO mode will NOT share a bundle with flagged secrets."
+    red "Bundle left at $OUT_DIR. Review DEEPSCAN-REPORT.md, fix, and re-run."
+    exit 2
+  fi
 fi
 
-# ---------------------------------------------------------------------------
-# 5. Recipient-safety manifest
-# ---------------------------------------------------------------------------
+# ---- recipient-safety manifest -------------------------------------------
 echo; bold ">> Inventorying executable content for your reviewer..."
 build_safety_manifest "$OUT_DIR"
 
-# ---------------------------------------------------------------------------
-# 6. Summaries + workflow docs (Claude layer)
-# ---------------------------------------------------------------------------
-echo; bold ">> Adding summaries + workflow docs..."
+# ---- summaries (claude layer) --------------------------------------------
 WIZARD_PROMPT="$KIT_DIR/prompts/WIZARD-PROMPT.md"
-if command -v claude >/dev/null 2>&1 && confirm "The 'claude' CLI is available. Run it now to write summaries into the bundle?"; then
-  ( cd "$OUT_DIR" && claude -p "You are documenting an already-gathered Claude setup bundle in the current directory. sources/ holds redacted copies of the user's real config; ENVIRONMENT.md and EXECUTABLE-CONTENT.md already exist. Following $KIT_DIR/prompts/, write CONFIG-INVENTORY.md, TOOLS-AND-REFERENCES.md, WORKFLOW.md, SUMMARY-TABLE.md and a top-level README.md. For each component give a plain-English summary, original source path, and a GitHub/homepage URL if public (else 'not found'). Never un-redact anything." ) \
-    && green "Claude wrote the summary docs." \
+run_claude_summaries() {
+  ( cd "$OUT_DIR" && claude -p "You are documenting an already-gathered Claude setup bundle in the current directory. sources/ holds redacted copies of the user's real config; ENVIRONMENT.md and EXECUTABLE-CONTENT.md already exist. Following $KIT_DIR/prompts/, write CONFIG-INVENTORY.md, TOOLS-AND-REFERENCES.md, WORKFLOW.md, SUMMARY-TABLE.md and a top-level README.md. For each component give a plain-English summary, original source path, and a GitHub/homepage URL if public (else 'not found'). Never un-redact anything." )
+}
+echo; bold ">> Summaries + workflow docs..."
+if [ "$AUTO" = 1 ]; then
+  if [ "$WITH_CLAUDE" = 1 ] && have claude; then
+    run_claude_summaries && green "Claude wrote the summary docs." || yellow "Claude run failed; bundle still has sources + reports."
+  else
+    yellow "Skipped summaries (auto mode). To add: open Claude Code in $OUT_DIR and paste $WIZARD_PROMPT"
+  fi
+elif have claude && confirm "Run the 'claude' CLI now to write summaries into the bundle?"; then
+  run_claude_summaries && green "Claude wrote the summary docs." \
     || yellow "Claude run failed — paste $WIZARD_PROMPT into Claude Code in $OUT_DIR instead."
 else
-  yellow "Add summaries: open Claude Code in $OUT_DIR and paste $WIZARD_PROMPT"
+  yellow "Add summaries later: open Claude Code in $OUT_DIR and paste $WIZARD_PROMPT"
 fi
 
-# ---------------------------------------------------------------------------
-# 7. Share
-# ---------------------------------------------------------------------------
-echo; bold ">> How do you want to share this bundle?"
-echo "  1) Public GitHub repo   2) Private GitHub repo"
-echo "  3) Zip (for email)      4) Temporary file-share link"
-echo "  5) Nothing for now"
-CHOICE="$(ask "Choose 1-5" "3")"
-case "$CHOICE" in
-  1) share_github "$OUT_DIR" "$NAME" "public" ;;
-  2) share_github "$OUT_DIR" "$NAME" "private" ;;
-  3) share_zip "$OUT_DIR" "$NAME" ;;
-  4) share_templink "$OUT_DIR" "$NAME" ;;
-  *) echo "Left the bundle at $OUT_DIR. You can share it later." ;;
-esac
+# ---- share ----------------------------------------------------------------
+export AUTO
+do_share() {
+  case "$1" in
+    github-public)  share_github "$OUT_DIR" "$NAME" "public" ;;
+    github-private) share_github "$OUT_DIR" "$NAME" "private" ;;
+    zip)            share_zip "$OUT_DIR" "$NAME" ;;
+    templink)       share_templink "$OUT_DIR" "$NAME" ;;
+    none|"")        echo "Left the bundle at $OUT_DIR. Share it later." ;;
+    *) yellow "Unknown share method '$1' — leaving bundle at $OUT_DIR." ;;
+  esac
+}
+
+if [ "$AUTO" = 1 ]; then
+  [ -z "$SHARE_METHOD" ] && SHARE_METHOD="zip"
+  echo; bold ">> Sharing via: $SHARE_METHOD"
+  do_share "$SHARE_METHOD"
+elif [ -n "$SHARE_METHOD" ]; then
+  do_share "$SHARE_METHOD"
+else
+  echo; bold ">> How do you want to share this bundle?"
+  echo "  1) Public GitHub repo   2) Private GitHub repo"
+  echo "  3) Zip (for email)      4) Temporary file-share link"
+  echo "  5) Nothing for now"
+  case "$(ask "Choose 1-5" "3")" in
+    1) do_share github-public ;;
+    2) do_share github-private ;;
+    3) do_share zip ;;
+    4) do_share templink ;;
+    *) do_share none ;;
+  esac
+fi
 
 echo; green "Done. Bundle: $OUT_DIR"
