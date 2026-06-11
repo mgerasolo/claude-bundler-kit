@@ -92,12 +92,13 @@ Open Claude Code at the root of your main project and paste the contents of [`pr
 ```
 <name>-bundle/
 ├── README.md                 # "Here's what I'm doing. Here's my setup. Learn from it."
+├── PROFILE.md                # ⭐ one-glance highlights + "things worth learning from"
 ├── CONFIG-INVENTORY.md       # CLAUDE.md, settings, plugins, MCP, subagents, skills, hooks
 ├── TOOLS-AND-REFERENCES.md   # your named tools + what each does + source URLs
 ├── WORKFLOW.md               # how you go from idea to shipped code
 ├── SUMMARY-TABLE.md          # one-line index of every component with its source
 ├── ENVIRONMENT.md            # claude version, installed plugins, MCP servers
-├── PROCESS-FLOW.md           # worktrees, GitHub Issues / Linear, command-usage signals
+├── PROCESS-FLOW.md           # worktrees, issues/Linear, testing/CI, git discipline, dev-env, command usage
 ├── EXECUTABLE-CONTENT.md     # inventory of every script/hook + risk flags
 ├── SECRETS-REPORT.md         # what the regex scrubber caught, per file
 ├── DEEPSCAN-REPORT.md        # external scanner verification (betterleaks/gitleaks/…)
