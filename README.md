@@ -10,15 +10,34 @@ See [SECURITY.md](SECURITY.md) for exactly what's excluded, scrubbed, and flagge
 
 ---
 
-## Quick start
+## Quick start (one command, fully automatic)
 
 ```bash
 git clone https://github.com/mgerasolo/claude-bundler-kit.git
 cd claude-bundler-kit
+./claude-bundler.sh --auto
+```
+
+That builds the whole bundle with **no questions asked** — gather → redact → scan → and drop a ready-to-email `my-claude-setup-bundle.zip` next to you. Pick how it comes back:
+
+```bash
+./claude-bundler.sh --auto                          # makes a zip to email
+./claude-bundler.sh --auto --share templink         # uploads + prints a shareable link
+./claude-bundler.sh --auto --share github-public    # pushes a public repo to clone
+./claude-bundler.sh --auto --name my-setup          # name it
+```
+
+In `--auto` mode, if the secret scanners flag anything, it **refuses to produce a shareable artifact** and tells you what to fix — it will never hand out a bundle with detected secrets.
+
+## Guided mode
+
+Prefer to be walked through it? Run it with no flags:
+
+```bash
 ./claude-bundler.sh
 ```
 
-That's it. `claude-bundler.sh` is an interactive wizard. It will:
+`claude-bundler.sh` is then an interactive wizard. It will:
 
 1. **Ask you to name** your bundle.
 2. **Show you an overview** and confirm before touching anything.
