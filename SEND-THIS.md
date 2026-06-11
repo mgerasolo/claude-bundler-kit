@@ -32,6 +32,10 @@ gh auth login          # one time, if you haven't
 That builds the bundle, scrubs + scans it, pushes it to a **private** repo, and
 invites me. I'll pull it, then you can delete the repo. Done.
 
+(`--invite` defaults to my username and accepts any GitHub username, so you can
+review/redirect it. To also capture how you use **worktrees** in a project, add
+`--project ~/path/to/your/repo` — repeat it for more repos.)
+
 **No GitHub? Send a file instead:**
 
 ```bash

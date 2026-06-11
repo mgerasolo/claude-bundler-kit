@@ -97,6 +97,7 @@ Open Claude Code at the root of your main project and paste the contents of [`pr
 ├── WORKFLOW.md               # how you go from idea to shipped code
 ├── SUMMARY-TABLE.md          # one-line index of every component with its source
 ├── ENVIRONMENT.md            # claude version, installed plugins, MCP servers
+├── PROCESS-FLOW.md           # worktrees, GitHub Issues / Linear, command-usage signals
 ├── EXECUTABLE-CONTENT.md     # inventory of every script/hook + risk flags
 ├── SECRETS-REPORT.md         # what the regex scrubber caught, per file
 ├── DEEPSCAN-REPORT.md        # external scanner verification (betterleaks/gitleaks/…)

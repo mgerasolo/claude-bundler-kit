@@ -18,6 +18,8 @@
 #   --share <method>       zip | github-private | github-public | templink | none
 #                          (default in --auto: zip)
 #   --invite <gh-user>     with github-private, auto-invite this GitHub user
+#                          (default: mgerasolo; set CBK_DEFAULT_INVITE to change)
+#   --project <path>       a repo to probe for git worktrees (repeatable)
 #   --allow-public         REQUIRED to use --share github-public (off by default)
 #   --fingerprint          include a non-source project fingerprint
 #   --with-claude          in --auto, also run the claude CLI to write summaries
@@ -31,10 +33,15 @@
 set -euo pipefail
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-for m in gather scrub deepscan inventory safety share; do
+for m in gather scrub deepscan inventory safety process share; do
   # shellcheck disable=SC1090
   source "$KIT_DIR/lib/$m.sh"
 done
+
+# Default reviewer to invite to a private repo (override with --invite, or set
+# CBK_DEFAULT_INVITE). Any GitHub username works.
+DEFAULT_INVITE="${CBK_DEFAULT_INVITE:-mgerasolo}"
+PROJECT_PATHS=""
 
 bold()  { printf '\033[1m%s\033[0m\n' "$1"; }
 green() { printf '\033[32m%s\033[0m\n' "$1"; }
@@ -58,12 +65,15 @@ while [ $# -gt 0 ]; do
     --name) shift; NAME="${1:-}" ;;
     --share) shift; SHARE_METHOD="${1:-}" ;;
     --invite) shift; INVITE_USER="${1:-}" ;;
-    -h|--help) sed -n '2,46p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+    --project) shift; PROJECT_PATHS="${PROJECT_PATHS}${1:-}"$'\n' ;;
+    -h|--help) sed -n '2,48p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
     *) red "Unknown flag: $1"; exit 1 ;;
   esac
   shift
 done
-export DRY_RUN FINGERPRINT AUTO INVITE_USER ALLOW_PUBLIC
+# Default the reviewer to invite (still overridable per run).
+[ -z "$INVITE_USER" ] && INVITE_USER="$DEFAULT_INVITE"
+export DRY_RUN FINGERPRINT AUTO INVITE_USER ALLOW_PUBLIC PROJECT_PATHS
 
 # ---- preflight ------------------------------------------------------------
 have(){ command -v "$1" >/dev/null 2>&1; }
@@ -156,6 +166,7 @@ echo; bold ">> Gathering your Claude config (redacting each file as it lands)...
 gather_config "$OUT_DIR"
 gather_fingerprint "$OUT_DIR"
 capture_environment "$OUT_DIR"
+capture_process_flow "$OUT_DIR"
 green "Gather complete."
 
 # ---- scrub verify ---------------------------------------------------------

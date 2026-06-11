@@ -33,7 +33,7 @@ Before writing any copy, redact every API key, token, password, client secret, p
 Write into `<name>-bundle/`:
 - `CONFIG-INVENTORY.md` — every config component: type, 2-4 sentence summary, source path, source URL, copy location.
 - `TOOLS-AND-REFERENCES.md` — my named tools and what each does for me, how I use it, source path + URL. Use the exact names I give you.
-- `WORKFLOW.md` — reconstruct my idea→ship pipeline as a numbered checklist; mark guesses `(inferred — confirm)`.
+- `WORKFLOW.md` — reconstruct my idea→ship pipeline as a numbered checklist; mark guesses `(inferred — confirm)`. Read `PROCESS-FLOW.md` and explicitly answer: do I use Claude Code worktrees? git worktrees? GitHub Issues? Linear? — citing its signals.
 - `SUMMARY-TABLE.md` — one row per component: Component | Type | What it does | Source path | Source URL | Copy.
 - `README.md` — short intro: "Here's my Claude setup. Take this and learn from it."
 
