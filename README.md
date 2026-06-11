@@ -18,16 +18,23 @@ cd claude-bundler-kit
 ./claude-bundler.sh --auto
 ```
 
-That builds the whole bundle with **no questions asked** — gather → redact → scan → and drop a ready-to-email `my-claude-setup-bundle.zip` next to you. Pick how it comes back:
+That builds the whole bundle with **no questions asked** — gather → redact → scan → package. Verify your machine first, then pick how it's delivered:
 
 ```bash
-./claude-bundler.sh --auto                          # makes a zip to email
-./claude-bundler.sh --auto --share templink         # uploads + prints a shareable link
-./claude-bundler.sh --auto --share github-public    # pushes a public repo to clone
-./claude-bundler.sh --auto --name my-setup          # name it
+./claude-bundler.sh --preflight                                    # check deps only, build nothing
+./claude-bundler.sh --auto                                         # makes a zip (size reported)
+./claude-bundler.sh --auto --share github-private --invite USER    # private repo, auto-invite a reviewer
+./claude-bundler.sh --auto --share templink                        # unlisted temp link
+./claude-bundler.sh --auto --name my-setup                         # name it
 ```
 
+**Recommended private hand-off** (nothing public, revocable): `--share github-private --invite <their-github-username>` — it pushes a private repo and invites them; they pull, you delete it.
+
+Public sharing is **off by default** — `--share github-public` does nothing unless you also pass `--allow-public`.
+
 In `--auto` mode, if the secret scanners flag anything, it **refuses to produce a shareable artifact** and tells you what to fix — it will never hand out a bundle with detected secrets.
+
+> **macOS:** fully supported. Run `./claude-bundler.sh --preflight` first; for the best scan, `brew install betterleaks gitleaks gh`.
 
 ## Guided mode
 

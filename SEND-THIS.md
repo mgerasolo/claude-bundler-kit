@@ -1,41 +1,52 @@
-# Share your Claude setup with me (2 minutes)
+# Share your Claude setup with me (private, ~2 minutes)
 
 I want to learn from how you've got Claude set up. This tool packages your
 config into one bundle, **automatically strips out every secret/API key/email**,
-and gives you something safe to send me. It's read-only — it won't change
-anything on your machine.
+runs real secret scanners, and gives it to me **privately** (nothing public).
+It's read-only — it won't change anything on your machine.
 
-## Run this
+## Step 1 — check your Mac is ready (10 seconds, builds nothing)
 
 ```bash
 git clone https://github.com/mgerasolo/claude-bundler-kit.git
 cd claude-bundler-kit
-./claude-bundler.sh --auto
+./claude-bundler.sh --preflight
 ```
 
-That creates a file called **`my-claude-setup-bundle.zip`** in that folder.
-Email it to me and you're done.
-
-## Want me to be able to just pull it instead of emailing?
-
-Pick one of these instead of the plain `--auto`:
+That prints what's installed. If anything REQUIRED is missing it'll say so —
+send me that output and I'll help. For the best secret-scanning (recommended):
 
 ```bash
-# Uploads it and prints a private link you text/email me:
-./claude-bundler.sh --auto --share templink
-
-# Pushes it to a public GitHub repo I can clone (needs `gh` logged in):
-./claude-bundler.sh --auto --share github-public
+brew install betterleaks gitleaks gh
 ```
 
-## What it does (so you can trust it)
+## Step 2 — build it and send it to me privately
 
-1. Copies your Claude config — CLAUDE.md, settings, skills, agents, commands,
-   hooks, MCP, plugins — **redacting each file the moment it's copied**.
-2. Never even copies credential files (`.env`, `.pem`, `.ssh`, keys).
-3. Runs real secret scanners (gitleaks/betterleaks/etc. if you have them) and
-   **refuses to make a shareable file if anything is still flagged**.
-4. Leaves a `SECRETS-REPORT.md` and `DEEPSCAN-REPORT.md` in the bundle so you
-   can see exactly what was scrubbed before you send it.
+**Recommended — a private repo only I'm invited to (nothing public):**
 
-Optional, for the best scan (recommended): `brew install betterleaks` first.
+```bash
+gh auth login          # one time, if you haven't
+./claude-bundler.sh --auto --share github-private --invite mgerasolo
+```
+
+That builds the bundle, scrubs + scans it, pushes it to a **private** repo, and
+invites me. I'll pull it, then you can delete the repo. Done.
+
+**No GitHub? Send a file instead:**
+
+```bash
+./claude-bundler.sh --auto          # makes <name>-bundle.zip in this folder
+```
+
+It'll tell you the size. If it's small, email/AirDrop/message it to me. If it's
+big, use the private-repo option above instead.
+
+## Why it's safe to send
+
+1. Redacts **each file the moment it's copied** — no raw secret ever sits in the bundle.
+2. **Never copies** credential files (`.env`, `.pem`, `.ssh`, keys) at all.
+3. Runs real scanners and, in `--auto`, **refuses to produce anything shareable
+   if a secret is still flagged**.
+4. **Won't go public** — the public option is disabled unless you explicitly force it.
+5. Leaves `SECRETS-REPORT.md` + `DEEPSCAN-REPORT.md` in the bundle so you can see
+   exactly what was scrubbed before it leaves your machine.

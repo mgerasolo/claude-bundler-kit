@@ -18,6 +18,7 @@ scrub_file() {
   command -v perl >/dev/null 2>&1 || { echo 0; return 0; }
   file "$f" 2>/dev/null | grep -qiE 'text|json|ascii|empty|script' || { echo 0; return 0; }
 
+  local nf="${TMPDIR:-/tmp}/_cbk_scrub.$$"
   SCRUB_HOME="$HOME" SCRUB_USER="${USER:-$(id -un 2>/dev/null)}" perl -0777 -i -pe '
     my $n = 0;
     my $home = quotemeta($ENV{SCRUB_HOME} // "");
@@ -47,9 +48,9 @@ scrub_file() {
     if ($home) { $n += s/$home/\/home\/<USER>/g; }
     if ($user && length($user) >= 3) { $n += s/\/(?:home|Users)\/\Q$user\E\b/\/home\/<USER>/g; }
     print STDERR "$n\n";
-  ' "$f" 2>/tmp/_scrub_n
-  local count; read -r count </tmp/_scrub_n 2>/dev/null || count=0
-  rm -f /tmp/_scrub_n
+  ' "$f" 2>"$nf"
+  local count; read -r count <"$nf" 2>/dev/null || count=0
+  rm -f "$nf"
   echo "${count:-0}"
 }
 
