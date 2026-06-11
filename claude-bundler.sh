@@ -13,14 +13,20 @@
 #
 # FLAGS
 #   --auto                 non-interactive; sensible defaults; no questions
+#   --preflight            run only the dependency checks, then exit (verify a machine)
 #   --name <name>          bundle name (default: my-claude-setup)
-#   --share <method>       zip | github-public | github-private | templink | none
+#   --share <method>       zip | github-private | github-public | templink | none
 #                          (default in --auto: zip)
+#   --invite <gh-user>     with github-private, auto-invite this GitHub user
+#   --allow-public         REQUIRED to use --share github-public (off by default)
 #   --fingerprint          include a non-source project fingerprint
 #   --with-claude          in --auto, also run the claude CLI to write summaries
 #   --yes                  assume yes to overwrite prompts (implied by --auto)
 #   --dry-run              list what would be gathered, then exit
 #   -h, --help             this help
+#
+# RECOMMENDED private hand-off (nothing public, revocable):
+#   ./claude-bundler.sh --auto --share github-private --invite THEIR_GH_USERNAME
 
 set -euo pipefail
 
@@ -38,29 +44,33 @@ ask()   { local p="$1" d="${2:-}" r; if [ -n "$d" ]; then read -r -p "$p [$d]: "
 confirm(){ local r; read -r -p "$1 [y/N]: " r; [[ "$r" =~ ^[Yy] ]]; }
 
 # ---- defaults / flag parsing ----------------------------------------------
-AUTO=0; DRY_RUN=0; YES=0; FINGERPRINT=0; WITH_CLAUDE=0
-NAME=""; SHARE_METHOD=""
+AUTO=0; DRY_RUN=0; YES=0; FINGERPRINT=0; WITH_CLAUDE=0; PREFLIGHT_ONLY=0; ALLOW_PUBLIC=0
+NAME=""; SHARE_METHOD=""; INVITE_USER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --auto) AUTO=1; YES=1 ;;
     --yes|-y) YES=1 ;;
     --dry-run) DRY_RUN=1 ;;
+    --preflight) PREFLIGHT_ONLY=1 ;;
     --fingerprint) FINGERPRINT=1 ;;
     --with-claude) WITH_CLAUDE=1 ;;
+    --allow-public) ALLOW_PUBLIC=1 ;;
     --name) shift; NAME="${1:-}" ;;
     --share) shift; SHARE_METHOD="${1:-}" ;;
-    -h|--help) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --invite) shift; INVITE_USER="${1:-}" ;;
+    -h|--help) sed -n '2,46p' "$0" | sed -E 's/^# ?//'; exit 0 ;;
     *) red "Unknown flag: $1"; exit 1 ;;
   esac
   shift
 done
-export DRY_RUN FINGERPRINT
+export DRY_RUN FINGERPRINT AUTO INVITE_USER ALLOW_PUBLIC
 
 # ---- preflight ------------------------------------------------------------
 have(){ command -v "$1" >/dev/null 2>&1; }
 preflight() {
   local missing_critical=0
   bold ">> Preflight — checking what's available:"
+  echo "  OS: $(uname -s 2>/dev/null || echo unknown) ($(uname -m 2>/dev/null))"
   for c in perl find file; do
     if have "$c"; then echo "  ✅ $c"; else echo "  ❌ $c (REQUIRED)"; missing_critical=1; fi
   done
@@ -90,7 +100,13 @@ echo
 
 if ! preflight; then
   red "Missing a required tool above. Install it and re-run."
+  [ "$(uname -s 2>/dev/null)" = "Darwin" ] && yellow "On macOS: 'brew install betterleaks gitleaks' for the best scan."
   exit 1
+fi
+if [ "$PREFLIGHT_ONLY" = 1 ]; then
+  green "Preflight only — nothing was built. Your machine is ready when the"
+  green "REQUIRED tools above are all ✅. Send this output back if unsure."
+  exit 0
 fi
 
 # ---- dry run --------------------------------------------------------------
@@ -218,3 +234,4 @@ else
 fi
 
 echo; green "Done. Bundle: $OUT_DIR"
+echo "Bundle size: $(du -sh "$OUT_DIR" 2>/dev/null | cut -f1)"

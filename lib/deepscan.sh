@@ -30,7 +30,7 @@ _entropy_flag() {
 deep_scan() {
   local dir="$1" report="$2"
   local found=0 ran=0
-  local tmp; tmp="$(mktemp -d)"
+  local tmp; tmp="$(mktemp -d "${TMPDIR:-/tmp}/cbk-deepscan.XXXXXX")"
 
   {
     echo "# Deep Scan Report (verification layer)"
