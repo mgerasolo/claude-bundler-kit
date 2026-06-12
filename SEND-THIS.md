@@ -1,11 +1,27 @@
-# Share your Claude setup with me (private, ~2 minutes)
+# Share your Claude setup with me (2 min, totally safe)
 
-I want to learn from how you've got Claude set up. This tool packages your
-config into one bundle, **automatically strips out every secret/API key/email**,
-runs real secret scanners, and gives it to me **privately** (nothing public).
-It's read-only — it won't change anything on your machine.
+Hey — I've been trying to get more reliable results out of Claude Code and you're
+clearly doing something right. I built a little tool that packages up your Claude
+setup into one bundle so I can see how you've got it dialed in. It's genuinely
+2 minutes and it's built to be safe to share.
 
-## Step 1 — check your Mac is ready (10 seconds, builds nothing)
+**What it does:** copies your Claude config (CLAUDE.md, rules, skills, subagents,
+commands, hooks, MCP servers), figures out how you actually work (worktrees, issue
+tracking, testing/CI, which tools + MCPs you use a lot), and writes it up as a
+readable summary. I get a `PROFILE.md` (quick highlights) and an `ANALYSIS.md`
+(here's your rules/hooks/MCPs and what's high vs low usage).
+
+## Security — why it's safe (this was the whole point of building it)
+
+- 🔒 **Read-only.** It only *reads and copies* — it never changes or deletes anything on your machine.
+- 🚫 **Never touches credential files.** `.env`, `.pem`, `.ssh`, API keys — those are skipped entirely, never copied.
+- ✂️ **Redacts as it copies.** Every file is scrubbed of secrets/keys/emails/IPs the instant it's copied — no raw secret ever sits in the bundle.
+- 🔎 **Real scanners gate it.** It then runs proper secret scanners (gitleaks/betterleaks) and **refuses to produce anything shareable if even one secret is flagged.**
+- 🙈 **Your chat history is never copied.** For the "what do you use a lot" stats it only counts tool names — it never includes your conversations or command arguments.
+- 🔐 **Nothing public.** It goes to a **private** repo only I'm invited to (you delete it after I pull). Public sharing is disabled by default.
+- 👀 **You can review before it leaves** — it drops a `SECRETS-REPORT.md` and `DEEPSCAN-REPORT.md` in the bundle showing exactly what was scrubbed.
+
+## Step 1 — check your Mac is ready (builds nothing, 10 sec)
 
 ```bash
 git clone https://github.com/mgerasolo/claude-bundler-kit.git
@@ -13,44 +29,35 @@ cd claude-bundler-kit
 ./claude-bundler.sh --preflight
 ```
 
-That prints what's installed. If anything REQUIRED is missing it'll say so —
-send me that output and I'll help. For the best secret-scanning (recommended):
+Send me whatever that prints. If anything's missing it'll say so. For the best
+secret-scanning (optional but recommended):
 
 ```bash
 brew install betterleaks gitleaks gh
 ```
 
-## Step 2 — build it and send it to me privately
-
-**Recommended — a private repo only I'm invited to (nothing public):**
+## Step 2 — build it and send it privately
 
 ```bash
-gh auth login          # one time, if you haven't
+gh auth login        # one time, if you haven't
 ./claude-bundler.sh --auto --share github-private --invite mgerasolo
 ```
 
-That builds the bundle, scrubs + scans it, pushes it to a **private** repo, and
-invites me. I'll pull it, then you can delete the repo. Done.
+That builds it, scrubs + scans it, pushes a **private** repo, and invites me. I pull
+it, you delete the repo. Done.
 
-(`--invite` defaults to my username and accepts any GitHub username, so you can
-review/redirect it. To also capture how you use **worktrees** in a project, add
-`--project ~/path/to/your/repo` — repeat it for more repos.)
+*(No GitHub? Just run `./claude-bundler.sh --auto` and it makes a small zip you can
+send me instead.)*
 
-**No GitHub? Send a file instead:**
+## What I get back
 
-```bash
-./claude-bundler.sh --auto          # makes <name>-bundle.zip in this folder
-```
+A self-contained bundle to read top-to-bottom:
 
-It'll tell you the size. If it's small, email/AirDrop/message it to me. If it's
-big, use the private-repo option above instead.
+- **PROFILE.md** — one-glance highlights + "things worth learning from"
+- **ANALYSIS.md** — your rules, hooks, MCP servers, and what's high vs low usage
+- **PROCESS-FLOW.md** — worktrees, testing/CI, git discipline, dev-env per repo
+- **WORKFLOW.md** — your idea→ship process, written up
+- **SECRETS-REPORT.md** + **DEEPSCAN-REPORT.md** — proof of what was scrubbed
+- **sources/** — the redacted config itself
 
-## Why it's safe to send
-
-1. Redacts **each file the moment it's copied** — no raw secret ever sits in the bundle.
-2. **Never copies** credential files (`.env`, `.pem`, `.ssh`, keys) at all.
-3. Runs real scanners and, in `--auto`, **refuses to produce anything shareable
-   if a secret is still flagged**.
-4. **Won't go public** — the public option is disabled unless you explicitly force it.
-5. Leaves `SECRETS-REPORT.md` + `DEEPSCAN-REPORT.md` in the bundle so you can see
-   exactly what was scrubbed before it leaves your machine.
+Thanks man 🙏
